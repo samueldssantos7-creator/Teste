@@ -94,14 +94,14 @@ def total_runs_by_km(df_in):
         size="duration_min",
         color="type",
         hover_name="name",
-        title="🏃 Distribuição de corridas por distância",
+        title="Distribuição de corridas por distância",
         labels={"distance_km": "Distância (km)"},
         trendline=None,
         color_discrete_map=color_map
     )
 
-    # garantir sem título no eixo X e título centralizado
-    fig.update_layout(xaxis_title=None, title_x=0.5)
+    # garantir sem título no eixo X (não forçar centralização)
+    fig.update_layout(xaxis_title=None)
     return fig
 
 def pace_by_category(df_in):
@@ -124,17 +124,17 @@ def pace_by_category(df_in):
     if cat_pace.empty:
         return None
     fig = px.bar(cat_pace, x="category", y="pace_min_km",
-                 title="🏃 Pace médio por categoria de distância",
+                 title="Pace médio por categoria de distância",
                  labels={"category":"Categoria","pace_min_km":"Pace (min/km)"},
                  text=cat_pace["pace_min_km"].apply(lambda x: format_pace_minutes(x)),
                  color_discrete_sequence=["#FC4C02"])
     fig.update_traces(textposition="outside")
-    fig.update_layout(xaxis_tickangle=-45, xaxis_title=None, title_x=0.5)
+    fig.update_layout(xaxis_tickangle=-45, xaxis_title=None)
     return fig
 
 # === CONFIGURAÇÃO INICIAL ===
 st.set_page_config(page_title="Dashboard Strava", layout="wide")
-st.title("Dashboard Strava — Interativo")
+st.title("🏃 Dashboard Strava — Interativo")
 
 # CSS para KPIs
 st.markdown(
@@ -179,29 +179,22 @@ def load_cached_activities(per_page: int, max_pages: int) -> pd.DataFrame:
     """Função para buscar dados do Strava, usa cache do Streamlit."""
     return load_activities(per_page=per_page, max_pages=max_pages)
 
-with st.sidebar:
-    st.header("Configuração")
-    per_page = st.number_input("Atividades por página", min_value=10, max_value=200, value=50, step=10)
-    max_pages = st.number_input("Máx páginas", min_value=1, max_value=50, value=4)
-    btn_fetch = st.button("Buscar/Atualizar dados")
+# -- Removido bloco sidebar duplicado aqui para evitar StreamlitDuplicateElementId --
+# (A barra lateral com filtros é definida mais abaixo, após o carregamento dos dados.)
 
 # === CARREGAMENTO DE DADOS ===
-if btn_fetch:
-    st.info("Buscando dados... aguarde")
-    st.cache_data.clear()
-    df = load_cached_activities(per_page, max_pages)
-else:
-    try:
-        csv_path = OUT_DIR / "activities.csv"
-        if csv_path.exists():
-            df = pd.read_csv(csv_path) 
-            st.info(f"Carregado CSV local: {csv_path.name}")
-        else:
-            df = pd.DataFrame()
-            st.warning("Sem dados locais. Pressione 'Buscar/Atualizar dados'.")
-    except Exception as e:
-        st.error(f"Erro ao carregar CSV: {e}")
+btn_fetch = False  # Inicializa como False para evitar erro de referência antes da definição
+try:
+    csv_path = OUT_DIR / "activities.csv"
+    if csv_path.exists():
+        df = pd.read_csv(csv_path) 
+        st.info(f"Carregado CSV local: {csv_path.name}")
+    else:
         df = pd.DataFrame()
+        st.warning("Sem dados locais. Pressione 'Buscar/Atualizar dados'.")
+except Exception as e:
+    st.error(f"Erro ao carregar CSV: {e}")
+    df = pd.DataFrame()
 
 if df.empty:
     st.error("❌ Não foi possível carregar os dados. Verifique suas credenciais no Streamlit Secrets.")
@@ -260,82 +253,187 @@ if df.empty:
 # cria df_filtered padrão para evitar NameError (pode ser modificado pelos filtros abaixo)
 df_filtered = df.copy()
 
-# === FILTROS ===
+# === SIDEBAR: CONFIGURAÇÃO E FILTROS (ANO / MÊS / DIA) ===
 with st.sidebar:
-    st.subheader("KPIs")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Atividades", len(df_filtered))
-        if "distance_km" in df_filtered.columns:
-            st.metric("Distância Total (km)", round(df_filtered["distance_km"].sum(), 1))
-        if "duration_min" in df_filtered.columns:
-            st.metric("Duração Total (min)", round(df_filtered["duration_min"].sum(), 1))
-    
-    with col2:
-        if "date" in df_filtered.columns:
-            st.metric("Primeira Atividade", df_filtered["date"].min().strftime('%Y-%m-%d'))
-            st.metric("Última Atividade", df_filtered["date"].max().strftime('%Y-%m-%d'))
+    st.header("Configuração")
+    per_page = st.number_input("Atividades por página", min_value=10, max_value=200, value=50, step=10, key="per_page")
+    max_pages = st.number_input("Máx páginas", min_value=1, max_value=50, value=4, key="max_pages")
+    btn_fetch = st.button("Buscar/Atualizar dados", key="btn_fetch")
+
+    st.markdown("---")
+    st.header("Filtros (Data)")
+
+    # opções disponíveis no dataset
+    years = sorted(df["date"].dt.year.dropna().unique().tolist())
+    years_opts = ["Todos"] + [str(y) for y in years]
+
+    selected_year = st.selectbox("Ano", options=years_opts, index=0, key="filter_year")
+
+    if selected_year != "Todos":
+        months = sorted(df[df["date"].dt.year == int(selected_year)]["date"].dt.month.dropna().unique().tolist())
+    else:
+        months = sorted(df["date"].dt.month.dropna().unique().tolist())
+    months_opts = ["Todos"] + [str(m) for m in months]
+    selected_month = st.selectbox("Mês (número)", options=months_opts, index=0, key="filter_month")
+
+    if selected_year != "Todos" and selected_month != "Todos":
+        days = sorted(
+            df[(df["date"].dt.year == int(selected_year)) & (df["date"].dt.month == int(selected_month))]["date"].dt.day
+            .dropna()
+            .unique()
+            .tolist()
+        )
+    elif selected_month != "Todos":
+        days = sorted(df[df["date"].dt.month == int(selected_month)]["date"].dt.day.dropna().unique().tolist())
+    else:
+        days = sorted(df["date"].dt.day.dropna().unique().tolist())
+    days_opts = ["Todos"] + [str(d) for d in days]
+    selected_day = st.selectbox("Dia", options=days_opts, index=0, key="filter_day")
+
+    st.markdown("")  # espaço
+    apply_filters = st.button("Aplicar filtros", key="apply_filters")
+
+# === KPIs NO CORPO PRINCIPAL (primeiros, centralizados) ===
+st.markdown("")  # espaço mínimo abaixo do título
+kpi_col_count = 4
+cols = st.columns(kpi_col_count, gap="large")
+
+# calculate metrics on df_filtered (will be updated below if filters applied)
+def render_kpis(df_kpi):
+    total_acts = len(df_kpi)
+    total_dist = round(df_kpi["distance_km"].sum(), 1) if "distance_km" in df_kpi.columns else None
+    # duração total em horas (solicitado)
+    total_dur_hours = round(df_kpi["duration_min"].sum() / 60, 1) if "duration_min" in df_kpi.columns else None
+    first_date = df_kpi["date"].min().strftime('%Y-%m-%d') if "date" in df_kpi.columns else ""
+    last_date = df_kpi["date"].max().strftime('%Y-%m-%d') if "date" in df_kpi.columns else ""
+
+    # calcular pace médio (min/km) como duração total / distância total
+    avg_pace = None
+    try:
+        if ("duration_min" in df_kpi.columns) and ("distance_km" in df_kpi.columns) and df_kpi["distance_km"].sum() > 0:
+            avg_pace = round(df_kpi["duration_min"].sum() / df_kpi["distance_km"].sum(), 1)
+    except Exception:
+        avg_pace = None
+
+    with cols[0]:
+        st.metric("Total Atividades", f"{total_acts}")
+    with cols[1]:
+        st.metric("Distância Total (km)", f"{total_dist}" if total_dist is not None else "N/A")
+    with cols[2]:
+        st.metric("Duração Total (h)", f"{total_dur_hours} h" if total_dur_hours is not None else "N/A")
+    with cols[3]:
+        # substitui "Período" por "Pace médio"
+        pace_display = format_pace_minutes(avg_pace) if avg_pace is not None else "N/A"
+        st.metric("Pace médio (min/km)", pace_display)
+
+# Se usuário clicar em aplicar filtros, faz o filtro; caso contrário, mantém tudo
+if 'apply_filters' in locals() and apply_filters:
+    df_filtered = df.copy()
+    try:
+        if selected_year != "Todos":
+            df_filtered = df_filtered[df_filtered["date"].dt.year == int(selected_year)]
+        if selected_month != "Todos":
+            df_filtered = df_filtered[df_filtered["date"].dt.month == int(selected_month)]
+        if selected_day != "Todos":
+            df_filtered = df_filtered[df_filtered["date"].dt.day == int(selected_day)]
+    except Exception:
+        # em caso de qualquer problema, mantém df_filtered original
+        df_filtered = df.copy()
+
+# Render KPIs sempre com o
+render_kpis(df_filtered)
 
 # === GRÁFICOS ===
-st.subheader("Resumo Geral")
+st.subheader("🏃 Resumo Geral")
+
+# helper para remover emoji no título da figura (caso venham de etl.py)
+def remove_emoji_from_fig_title(fig):
+    try:
+        title_text = fig.layout.title.text
+        if title_text:
+            # remove o emoji de corrida se existir e retira espaços iniciais
+            new_title = title_text.replace("🏃", "").lstrip()
+            fig.update_layout(title_text=new_title)
+    except Exception:
+        pass
+    return fig
 
 with st.spinner("Gerando gráficos..."):
     col1, col2 = st.columns(2, gap="large")
     
     with col1:
-        st.subheader("Distância acumulada")
         fig1 = create_distance_over_time(df_filtered)
         if fig1:
+            fig1 = remove_emoji_from_fig_title(fig1)
+            fig1.update_layout(title_text="🏃 Distância acumulada")    # título com ícone
             fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
             fig1.update_layout(xaxis_title=None)
             fig1.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
             st.plotly_chart(fig1, use_container_width=True)
 
-        st.subheader("Tendência de pace")
         fig3 = create_pace_trend(df_filtered)
         if fig3:
+            fig3 = remove_emoji_from_fig_title(fig3)
+            fig3.update_layout(title_text="🏃 Tendência de pace")    # título com ícone
             fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
             fig3.update_layout(xaxis_title=None)
             fig3.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
             st.plotly_chart(fig3, use_container_width=True)
 
     with col2:
-        # trocar ícone do título para pessoa correndo
-        st.subheader("🏃 Tipos de atividade")
         fig2 = create_activity_type_pie(df_filtered)
         if fig2:
-            fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
-            fig2.update_layout(xaxis_title=None, title_x=0.5)
+            fig2 = remove_emoji_from_fig_title(fig2)
+            fig2.update_layout(title_text="🏃 Tipos de atividade")    # título com ícone
+
+            color_map = {
+                "Run": "#FC4C02",
+                "Walk": "#2ca02c",
+                "Ride": "#1f77b4",
+            }
+            try:
+                labels = list(fig2.data[0].labels)
+                colors = [color_map.get(lbl, "#A0522D") for lbl in labels]
+                fig2.update_traces(marker=dict(colors=colors))
+            except Exception:
+                fig2.update_traces(marker=dict(colors=["#FC4C02", "#2ca02c", "#1f77b4", "#A0522D"]))
+
+            fig2.update_layout(xaxis_title=None)
             fig2.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
             st.plotly_chart(fig2, use_container_width=True)
 
-        st.subheader("Total corridas por km")
         fig_km = total_runs_by_km(df_filtered)
         if fig_km:
+            fig_km = remove_emoji_from_fig_title(fig_km)
+            fig_km.update_layout(title_text="🏃 Distribuição por distância")   # título com ícone
             fig_km.update_layout(xaxis_title=None)
             fig_km.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=460)
             fig_km.update_yaxes(automargin=True)
             st.plotly_chart(fig_km, use_container_width=True)
 
-    st.subheader("Estatísticas mensais")
     fig_monthly = create_monthly_stats(df_filtered)
     if fig_monthly:
+        fig_monthly = remove_emoji_from_fig_title(fig_monthly)
+        # manter título ou ajustar se quiser; aqui removemos apenas o eixo Y
+        fig_monthly.update_layout(title_text="🏃 Total distância")
+        # esconder todo o eixo Y (linhas, ticks e labels)
+        fig_monthly.update_yaxes(visible=False)
         fig_monthly.update_traces(marker_color="#FC4C02")
         fig_monthly.update_layout(xaxis_title=None)
         fig_monthly.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
-        fig_monthly.update_yaxes(automargin=True)
         fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
         st.plotly_chart(fig_monthly, use_container_width=True)
 
-    # deixar subheader com ícone para pace por categoria
-    st.subheader("🏃 Pace médio por categoria")
     fig_cat = pace_by_category(df_filtered)
     if fig_cat:
+        fig_cat = remove_emoji_from_fig_title(fig_cat)
+        # manter título ou ajustar se quiser; aqui removemos apenas o eixo Y
+        fig_cat.update_layout(title_text="🏃 Pace médio por categoria")
+        # esconder todo o eixo Y (linhas, ticks e labels)
+        fig_cat.update_yaxes(visible=False)
         fig_cat.update_traces(marker_color="#FC4C02")
         fig_cat.update_layout(xaxis_title=None)
         fig_cat.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
-        fig_cat.update_yaxes(automargin=True)
         fig_cat.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
         st.plotly_chart(fig_cat, use_container_width=True)
 
