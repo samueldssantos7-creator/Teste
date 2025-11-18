@@ -62,18 +62,44 @@ def categorize_distance(distance_km):
         return "Meia maratona (> 21km)"
 
 def total_runs_by_km(df_in):
-    """Gráfico de dispersão: total corridas por km"""
+    """Gráfico de dispersão: total corridas por km (cores por tipo de atividade)"""
     if df_in.empty:
         return None
     df_in = df_in.copy()
     df_in["distance_km"] = pd.to_numeric(df_in["distance_km"], errors="coerce").fillna(0)
     df_in["duration_min"] = pd.to_numeric(df_in["duration_min"], errors="coerce").fillna(0)
-    fig = px.scatter(df_in, x="distance_km", y="distance_km", size="duration_min",
-                     color="type", hover_name="name",
-                     title="Distribuição de corridas por distância",
-                     labels={"distance_km":"Distância (km)"},
-                     trendline=None,
-                     color_discrete_sequence=["#FC4C02"])
+
+    # Cores por tipo (adapte se seus tipos forem diferentes)
+    preferred = {
+        "Run": "#FC4C02",        # laranja Strava
+        "Ride": "#1f77b4",       # azul
+        "Bike": "#1f77b4",
+        "Walk": "#2ca02c",       # verde
+        "Hike": "#8c564b",       # marrom
+        "VirtualRun": "#9467bd",
+        "EBikeRide": "#17becf"
+    }
+
+    unique_types = [t for t in df_in["type"].dropna().unique()]
+    # Palette fallback para tipos não mapeados
+    fallback_palette = ["#e377c2", "#7f7f7f", "#bcbd22", "#ff7f0e", "#17becf"]
+    color_map = {}
+    for i, t in enumerate(sorted(unique_types, key=lambda x: str(x))):
+        color_map[t] = preferred.get(t, fallback_palette[i % len(fallback_palette)])
+
+    fig = px.scatter(
+        df_in,
+        x="distance_km",
+        y="distance_km",
+        size="duration_min",
+        color="type",
+        hover_name="name",
+        title="Distribuição de corridas por distância",
+        labels={"distance_km": "Distância (km)"},
+        trendline=None,
+        color_discrete_map=color_map
+    )
+
     # garantir sem título no eixo X
     fig.update_layout(xaxis_title=None)
     return fig
@@ -272,88 +298,89 @@ if mes_selecionado != "Todos":
 if dia_selecionado != "Todos":
     mask &= (df["date"].dt.day == dia_selecionado)
 
-df_filtered = df[mask].copy()
+df_filtered = df[mask]
 
-if df_filtered.empty:
-    st.warning("Nenhum dado encontrado para os filtros selecionados.")
-    st.stop()
-
-# === KPIs ===
-total_runs = len(df_filtered)
-total_km = df_filtered["distance_km"].sum() if "distance_km" in df_filtered.columns else 0
-total_time_min = df_filtered["duration_min"].sum() if "duration_min" in df_filtered.columns else 0
-pace_mean = total_time_min / total_km if total_km > 0 else None
-
-k1, k2, k3, k4 = st.columns(4)
-with k1:
-    st.metric("Total atividades", f"{total_runs}")
-with k2:
-    st.metric("Km total", f"{total_km:.1f} km")
-with k3:
-    st.metric("Pace médio", format_pace_minutes(pace_mean) if pace_mean else "N/A")
-with k4:
-    st.metric("Tempo total", format_minutes_hms(total_time_min))
+# === KPIS ===
+with st.sidebar:
+    st.subheader("KPIs")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Atividades", len(df_filtered))
+        if "distance_km" in df_filtered.columns:
+            st.metric("Distância Total (km)", round(df_filtered["distance_km"].sum(), 1))
+        if "duration_min" in df_filtered.columns:
+            st.metric("Duração Total (min)", round(df_filtered["duration_min"].sum(), 1))
+    
+    with col2:
+        if "date" in df_filtered.columns:
+            st.metric("Primeira Atividade", df_filtered["date"].min().strftime('%Y-%m-%d'))
+            st.metric("Última Atividade", df_filtered["date"].max().strftime('%Y-%m-%d'))
 
 # === GRÁFICOS ===
-col1, col2 = st.columns(2)
-with col1:
-    # voltar título ao padrão (alinhamento padrão do Streamlit)
-    st.subheader("Distância acumulada")
-    fig1 = create_distance_over_time(df_filtered)
-    if fig1:
-        fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-        fig1.update_layout(xaxis_title=None)
-        # ajuste de margem/altura genérico para evitar cortes
-        fig1.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
-        st.plotly_chart(fig1, use_container_width=True)
+st.subheader("Resumo Geral")
 
-    st.subheader("Tendência de pace")
-    fig3 = create_pace_trend(df_filtered)
-    if fig3:
-        fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-        fig3.update_layout(xaxis_title=None)
-        fig3.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
-        st.plotly_chart(fig3, use_container_width=True)
+with st.spinner("Gerando gráficos..."):
+    col1, col2 = st.columns(2, gap="large")
+    
+    with col1:
+        # voltar título ao padrão (alinhamento padrão do Streamlit)
+        st.subheader("Distância acumulada")
+        fig1 = create_distance_over_time(df_filtered)
+        if fig1:
+            fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
+            fig1.update_layout(xaxis_title=None)
+            # ajuste de margem/altura genérico para evitar cortes
+            fig1.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
+            st.plotly_chart(fig1, use_container_width=True)
 
-with col2:
-    st.subheader("Tipos de atividade")
-    fig2 = create_activity_type_pie(df_filtered)
-    if fig2:
-        fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
-        fig2.update_layout(xaxis_title=None)
-        fig2.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.subheader("Tendência de pace")
+        fig3 = create_pace_trend(df_filtered)
+        if fig3:
+            fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
+            fig3.update_layout(xaxis_title=None)
+            fig3.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
+            st.plotly_chart(fig3, use_container_width=True)
 
-    st.subheader("Total corridas por km")
-    fig_km = total_runs_by_km(df_filtered)
-    if fig_km:
-        fig_km.update_layout(xaxis_title=None)
-        # aumentar altura/margem para não cortar pontos/labels
-        fig_km.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=460)
-        fig_km.update_yaxes(automargin=True)
-        st.plotly_chart(fig_km, use_container_width=True)
+    with col2:
+        st.subheader("Tipos de atividade")
+        fig2 = create_activity_type_pie(df_filtered)
+        if fig2:
+            fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
+            fig2.update_layout(xaxis_title=None)
+            fig2.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
+            st.plotly_chart(fig2, use_container_width=True)
 
-st.subheader("Estatísticas mensais")
-fig_monthly = create_monthly_stats(df_filtered)
-if fig_monthly:
-    fig_monthly.update_traces(marker_color="#FC4C02")
-    fig_monthly.update_layout(xaxis_title=None)
-    # aumentar altura e margem para textos "outside" não serem cortados
-    fig_monthly.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
-    fig_monthly.update_yaxes(automargin=True)
-    fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
-    st.plotly_chart(fig_monthly, use_container_width=True)
+        st.subheader("Total corridas por km")
+        fig_km = total_runs_by_km(df_filtered)
+        if fig_km:
+            fig_km.update_layout(xaxis_title=None)
+            # aumentar altura/margem para não cortar pontos/labels
+            fig_km.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=460)
+            fig_km.update_yaxes(automargin=True)
+            st.plotly_chart(fig_km, use_container_width=True)
 
-st.subheader("Pace médio por categoria")
-fig_cat = pace_by_category(df_filtered)
-if fig_cat:
-    fig_cat.update_traces(marker_color="#FC4C02")
-    fig_cat.update_layout(xaxis_title=None)
-    # aumentar altura e margem para textos "outside" não serem cortados
-    fig_cat.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
-    fig_cat.update_yaxes(automargin=True)
-    fig_cat.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
-    st.plotly_chart(fig_cat, use_container_width=True)
+    st.subheader("Estatísticas mensais")
+    fig_monthly = create_monthly_stats(df_filtered)
+    if fig_monthly:
+        fig_monthly.update_traces(marker_color="#FC4C02")
+        fig_monthly.update_layout(xaxis_title=None)
+        # aumentar altura e margem para textos "outside" não serem cortados
+        fig_monthly.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
+        fig_monthly.update_yaxes(automargin=True)
+        fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
+        st.plotly_chart(fig_monthly, use_container_width=True)
+
+    st.subheader("Pace médio por categoria")
+    fig_cat = pace_by_category(df_filtered)
+    if fig_cat:
+        fig_cat.update_traces(marker_color="#FC4C02")
+        fig_cat.update_layout(xaxis_title=None)
+        # aumentar altura e margem para textos "outside" não serem cortados
+        fig_cat.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
+        fig_cat.update_yaxes(automargin=True)
+        fig_cat.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
+        st.plotly_chart(fig_cat, use_container_width=True)
 
 # Download
 if not df_filtered.empty:
