@@ -324,3 +324,11 @@ if not df_filtered.empty:
 
 if not df.empty:
     st.write("Período total:", df["date"].min().strftime('%Y-%m-%d'), "→", df["date"].max().strftime('%Y-%m-%d'))
+
+# === ARQUIVO .gitignore SUGERIDO ===
+"""
+.venv/
+__pycache__/
+*.pyc
+activities.csv
+"""
