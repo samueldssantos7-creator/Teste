@@ -310,14 +310,41 @@ cols = st.columns(kpi_col_count, gap="large")
 
 # calculate metrics on df_filtered (will be updated below if filters applied)
 def render_kpis(df_kpi):
-    total_acts = len(df_kpi)
-    total_dist = round(df_kpi["distance_km"].sum(), 1) if "distance_km" in df_kpi.columns else None
-    # duração total em horas (solicitado)
-    total_dur_hours = round(df_kpi["duration_min"].sum() / 60, 1) if "duration_min" in df_kpi.columns else None
-    first_date = df_kpi["date"].min().strftime('%Y-%m-%d') if "date" in df_kpi.columns else ""
-    last_date = df_kpi["date"].max().strftime('%Y-%m-%d') if "date" in df_kpi.columns else ""
+    # Proteção: se DataFrame vazio, mostra zeros/N/A e retorna
+    if df_kpi is None or df_kpi.empty:
+        with cols[0]:
+            st.metric("Total Atividades", "0")
+        with cols[1]:
+            st.metric("Distância Total (km)", "0")
+        with cols[2]:
+            st.metric("Duração Total (h)", "0 h")
+        with cols[3]:
+            st.metric("Pace médio (min/km)", "N/A")
+        return
 
-    # calcular pace médio (min/km) como duração total / distância total
+    total_acts = len(df_kpi)
+    total_dist = round(df_kpi["distance_km"].sum(), 1) if "distance_km" in df_kpi.columns else 0
+    total_dur_hours = round(df_kpi["duration_min"].sum() / 60, 1) if "duration_min" in df_kpi.columns else 0
+
+    # tratar datas com segurança (evita .strftime() sobre NaT)
+    first_date = ""
+    last_date = ""
+    try:
+        if "date" in df_kpi.columns:
+            # remove NaT antes de pegar min/max
+            valid_dates = df_kpi["date"].dropna()
+            if not valid_dates.empty:
+                fd = valid_dates.min()
+                ld = valid_dates.max()
+                if pd.notna(fd):
+                    first_date = pd.to_datetime(fd).strftime('%Y-%m-%d')
+                if pd.notna(ld):
+                    last_date = pd.to_datetime(ld).strftime('%Y-%m-%d')
+    except Exception:
+        first_date = ""
+        last_date = ""
+
+    # calcular pace médio (min/km) como duração total / distância total com proteção
     avg_pace = None
     try:
         if ("duration_min" in df_kpi.columns) and ("distance_km" in df_kpi.columns) and df_kpi["distance_km"].sum() > 0:
@@ -328,11 +355,10 @@ def render_kpis(df_kpi):
     with cols[0]:
         st.metric("Total Atividades", f"{total_acts}")
     with cols[1]:
-        st.metric("Distância Total (km)", f"{total_dist}" if total_dist is not None else "N/A")
+        st.metric("Distância Total (km)", f"{total_dist}" if total_dist is not None else "0")
     with cols[2]:
-        st.metric("Duração Total (h)", f"{total_dur_hours} h" if total_dur_hours is not None else "N/A")
+        st.metric("Duração Total (h)", f"{total_dur_hours} h" if total_dur_hours is not None else "0 h")
     with cols[3]:
-        # substitui "Período" por "Pace médio"
         pace_display = format_pace_minutes(avg_pace) if avg_pace is not None else "N/A"
         st.metric("Pace médio (min/km)", pace_display)
 
