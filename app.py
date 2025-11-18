@@ -104,7 +104,11 @@ def pace_by_category(df_in):
                  color_discrete_sequence=["#FC4C02"])
     fig.update_traces(textposition="outside")
     fig.update_layout(xaxis_tickangle=-45)
-    # garantir sem título no eixo X
+
+    # evitar corte dos textos: automargin + margem inferior maior + altura
+    fig.update_xaxes(automargin=True)
+    fig.update_yaxes(automargin=True)
+    fig.update_layout(margin=dict(t=60, b=140, l=40, r=20), height=560, autosize=True)
     fig.update_layout(xaxis_title=None)
     return fig
 
@@ -130,15 +134,16 @@ st.markdown(
         padding: 10px !important;
         color: white !important;
     }
-    div[data-testid="stMetricValue"] {
-        color: white !important;
+    /* força centralização do label e do valor */
+    .stMetricLabel, div[data-testid="stMetricLabel"] {
+        width: 100% !important;
         text-align: center !important;
-        font-size: 1.4em !important;
+        display: block !important;
     }
-    div[data-testid="stMetricLabel"] {
-        color: white !important;
+    .stMetricValue, div[data-testid="stMetricValue"] {
+        width: 100% !important;
         text-align: center !important;
-        font-weight: bold !important;
+        display: block !important;
     }
 
     /* Evita overflow nos gráficos do Plotly dentro do Streamlit */
@@ -331,18 +336,23 @@ st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Estatísticas mensa
 fig_monthly = create_monthly_stats(df_filtered)
 if fig_monthly:
     fig_monthly.update_traces(marker_color="#FC4C02")
-    fig_monthly.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=40, b=120, l=40, r=20), height=560)
+    fig_monthly.update_layout(xaxis_title=None)
+    # aumentar altura e margem para textos "outside" não serem cortados
     fig_monthly.update_xaxes(automargin=True)
     fig_monthly.update_yaxes(automargin=True)
+    fig_monthly.update_layout(margin=dict(t=70, b=160, l=40, r=20), height=640, autosize=True)
+    fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
     st.plotly_chart(fig_monthly, use_container_width=True)
 
-st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Pace médio por categoria</h3>", unsafe_allow_html=True)
+# Pace médio por categoria (já tratado na função), mas garantir chamada consistente
+st.subheader("Pace médio por categoria")
 fig_cat = pace_by_category(df_filtered)
 if fig_cat:
     fig_cat.update_traces(marker_color="#FC4C02")
-    fig_cat.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=40, b=120, l=40, r=20), height=560)
+    # garante automargin caso a função retorne sem margem suficiente
     fig_cat.update_xaxes(automargin=True)
     fig_cat.update_yaxes(automargin=True)
+    fig_cat.update_layout(margin=dict(t=60, b=140, l=40, r=20), height=560, autosize=True)
     st.plotly_chart(fig_cat, use_container_width=True)
 
 # Download
