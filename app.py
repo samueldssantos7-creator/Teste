@@ -302,15 +302,15 @@ with k4:
 # === GRÁFICOS ===
 col1, col2 = st.columns(2)
 with col1:
-    # centered header (substitui st.subheader)
-    st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Distância acumulada</h3>", unsafe_allow_html=True)
+    # voltar título ao padrão (alinhamento padrão do Streamlit)
+    st.subheader("Distância acumulada")
     fig1 = create_distance_over_time(df_filtered)
     if fig1:
         fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
         fig1.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=420)
         st.plotly_chart(fig1, use_container_width=True)
 
-    st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Tendência de pace</h3>", unsafe_allow_html=True)
+    st.subheader("Tendência de pace")
     fig3 = create_pace_trend(df_filtered)
     if fig3:
         fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
@@ -318,21 +318,22 @@ with col1:
         st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
-    st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Tipos de atividade</h3>", unsafe_allow_html=True)
+    st.subheader("Tipos de atividade")
     fig2 = create_activity_type_pie(df_filtered)
     if fig2:
         fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
         fig2.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=420)
         st.plotly_chart(fig2, use_container_width=True)
 
-    st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Total corridas por km</h3>", unsafe_allow_html=True)
+    st.subheader("Total corridas por km")
     fig_km = total_runs_by_km(df_filtered)
     if fig_km:
         fig_km.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=460)
         fig_km.update_yaxes(automargin=True)
         st.plotly_chart(fig_km, use_container_width=True)
 
-st.markdown("<h3 style='text-align:center;margin-bottom:6px'>Estatísticas mensais</h3>", unsafe_allow_html=True)
+# voltar título ao padrão
+st.subheader("Estatísticas mensais")
 fig_monthly = create_monthly_stats(df_filtered)
 if fig_monthly:
     fig_monthly.update_traces(marker_color="#FC4C02")
