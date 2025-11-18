@@ -104,11 +104,7 @@ def pace_by_category(df_in):
                  color_discrete_sequence=["#FC4C02"])
     fig.update_traces(textposition="outside")
     fig.update_layout(xaxis_tickangle=-45)
-
-    # evitar corte dos textos: automargin + margem inferior maior + altura
-    fig.update_xaxes(automargin=True)
-    fig.update_yaxes(automargin=True)
-    fig.update_layout(margin=dict(t=60, b=140, l=40, r=20), height=560, autosize=True)
+    # garantir sem título no eixo X
     fig.update_layout(xaxis_title=None)
     return fig
 
@@ -134,16 +130,15 @@ st.markdown(
         padding: 10px !important;
         color: white !important;
     }
-    /* força centralização do label e do valor */
-    .stMetricLabel, div[data-testid="stMetricLabel"] {
-        width: 100% !important;
+    div[data-testid="stMetricValue"] {
+        color: white !important;
         text-align: center !important;
-        display: block !important;
+        font-size: 1.4em !important;
     }
-    .stMetricValue, div[data-testid="stMetricValue"] {
-        width: 100% !important;
+    div[data-testid="stMetricLabel"] {
+        color: white !important;
         text-align: center !important;
-        display: block !important;
+        font-weight: bold !important;
     }
 
     /* Evita overflow nos gráficos do Plotly dentro do Streamlit */
@@ -307,14 +302,17 @@ with col1:
     fig1 = create_distance_over_time(df_filtered)
     if fig1:
         fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-        fig1.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=420)
+        fig1.update_layout(xaxis_title=None)
+        # ajuste de margem/altura genérico para evitar cortes
+        fig1.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig1, use_container_width=True)
 
     st.subheader("Tendência de pace")
     fig3 = create_pace_trend(df_filtered)
     if fig3:
         fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-        fig3.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=420)
+        fig3.update_layout(xaxis_title=None)
+        fig3.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig3, use_container_width=True)
 
 with col2:
@@ -322,38 +320,39 @@ with col2:
     fig2 = create_activity_type_pie(df_filtered)
     if fig2:
         fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
-        fig2.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=420)
+        fig2.update_layout(xaxis_title=None)
+        fig2.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig2, use_container_width=True)
 
     st.subheader("Total corridas por km")
     fig_km = total_runs_by_km(df_filtered)
     if fig_km:
-        fig_km.update_layout(xaxis_title=None, title_x=0.5, margin=dict(t=30, b=70, l=40, r=20), height=460)
+        fig_km.update_layout(xaxis_title=None)
+        # aumentar altura/margem para não cortar pontos/labels
+        fig_km.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=460)
         fig_km.update_yaxes(automargin=True)
         st.plotly_chart(fig_km, use_container_width=True)
 
-# voltar título ao padrão
 st.subheader("Estatísticas mensais")
 fig_monthly = create_monthly_stats(df_filtered)
 if fig_monthly:
     fig_monthly.update_traces(marker_color="#FC4C02")
     fig_monthly.update_layout(xaxis_title=None)
     # aumentar altura e margem para textos "outside" não serem cortados
-    fig_monthly.update_xaxes(automargin=True)
+    fig_monthly.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
     fig_monthly.update_yaxes(automargin=True)
-    fig_monthly.update_layout(margin=dict(t=70, b=160, l=40, r=20), height=640, autosize=True)
     fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
     st.plotly_chart(fig_monthly, use_container_width=True)
 
-# Pace médio por categoria (já tratado na função), mas garantir chamada consistente
 st.subheader("Pace médio por categoria")
 fig_cat = pace_by_category(df_filtered)
 if fig_cat:
     fig_cat.update_traces(marker_color="#FC4C02")
-    # garante automargin caso a função retorne sem margem suficiente
-    fig_cat.update_xaxes(automargin=True)
+    fig_cat.update_layout(xaxis_title=None)
+    # aumentar altura e margem para textos "outside" não serem cortados
+    fig_cat.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
     fig_cat.update_yaxes(automargin=True)
-    fig_cat.update_layout(margin=dict(t=60, b=140, l=40, r=20), height=560, autosize=True)
+    fig_cat.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
     st.plotly_chart(fig_cat, use_container_width=True)
 
 # Download
