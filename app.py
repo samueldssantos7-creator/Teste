@@ -74,6 +74,8 @@ def total_runs_by_km(df_in):
                      labels={"distance_km":"Distância (km)"},
                      trendline=None,
                      color_discrete_sequence=["#FC4C02"])
+    # garantir sem título no eixo X
+    fig.update_layout(xaxis_title=None)
     return fig
 
 def pace_by_category(df_in):
@@ -102,6 +104,8 @@ def pace_by_category(df_in):
                  color_discrete_sequence=["#FC4C02"])
     fig.update_traces(textposition="outside")
     fig.update_layout(xaxis_tickangle=-45)
+    # garantir sem título no eixo X
+    fig.update_layout(xaxis_title=None)
     return fig
 
 # === CONFIGURAÇÃO INICIAL ===
@@ -165,11 +169,6 @@ else:
 if df.empty:
     st.error("❌ Não foi possível carregar os dados. Verifique suas credenciais no Streamlit Secrets.")
     st.stop()
-
-# === DEBUG: MOSTRAR COLUNAS DISPONÍVEIS ===
-st.sidebar.subheader("Debug Info")
-st.sidebar.write(f"Colunas disponíveis: {df.columns.tolist()}")
-st.sidebar.write(f"Total de linhas: {len(df)}")
 
 # === TRATAMENTO DE COLUNAS ===
 # Verificar coluna de data
@@ -287,34 +286,44 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("Distância acumulada")
     fig1 = create_distance_over_time(df_filtered)
-    fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-    st.plotly_chart(fig1, width='stretch')
+    if fig1:
+        fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
+        fig1.update_layout(xaxis_title=None)
+        st.plotly_chart(fig1, width='stretch')
 
     st.subheader("Tendência de pace")
     fig3 = create_pace_trend(df_filtered)
-    fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
-    st.plotly_chart(fig3, width='stretch')
+    if fig3:
+        fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
+        fig3.update_layout(xaxis_title=None)
+        st.plotly_chart(fig3, width='stretch')
 
 with col2:
     st.subheader("Tipos de atividade")
     fig2 = create_activity_type_pie(df_filtered)
-    fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
-    st.plotly_chart(fig2, width='stretch')
+    if fig2:
+        fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
+        fig2.update_layout(xaxis_title=None)
+        st.plotly_chart(fig2, width='stretch')
 
     st.subheader("Total corridas por km")
     fig_km = total_runs_by_km(df_filtered)
     if fig_km:
+        fig_km.update_layout(xaxis_title=None)
         st.plotly_chart(fig_km, width='stretch')
 
 st.subheader("Estatísticas mensais")
 fig_monthly = create_monthly_stats(df_filtered)
-fig_monthly.update_traces(marker_color="#FC4C02")
-st.plotly_chart(fig_monthly, width='stretch')
+if fig_monthly:
+    fig_monthly.update_traces(marker_color="#FC4C02")
+    fig_monthly.update_layout(xaxis_title=None)
+    st.plotly_chart(fig_monthly, width='stretch')
 
 st.subheader("Pace médio por categoria")
 fig_cat = pace_by_category(df_filtered)
 if fig_cat:
     fig_cat.update_traces(marker_color="#FC4C02")
+    fig_cat.update_layout(xaxis_title=None)
     st.plotly_chart(fig_cat, width='stretch')
 
 # Download
