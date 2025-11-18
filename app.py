@@ -21,6 +21,7 @@ from etl import (
     create_activity_type_pie,
     create_pace_trend,
     create_monthly_stats,
+    filter_by_date,    # <--- adicionada
 )
 
 # === CONFIGURAÇÃO DE CORES E DIRETÓRIOS ===
@@ -250,8 +251,9 @@ if df.empty:
     st.error("❌ Nenhum dado válido após o processamento")
     st.stop()
 
-# cria df_filtered padrão para evitar NameError (pode ser modificado pelos filtros abaixo)
-df_filtered = df.copy()
+# -------------------------------------------------------------------
+# REMOVIDO: bloco que aplicava filtro de período antes do sidebar
+# -------------------------------------------------------------------
 
 # === SIDEBAR: CONFIGURAÇÃO E FILTROS (ANO / MÊS / DIA) ===
 with st.sidebar:
@@ -260,38 +262,46 @@ with st.sidebar:
     max_pages = st.number_input("Máx páginas", min_value=1, max_value=50, value=4, key="max_pages")
     btn_fetch = st.button("Buscar/Atualizar dados", key="btn_fetch")
 
-    st.markdown("---")
-    st.header("Filtros (Data)")
+    # >>> REMOVIDO: date_input (filtro de período)
+    # from datetime import date
+    # min_date = df["date"].min().date() if 'df' in locals() and not df.empty else date.today()
+    # max_date = df["date"].max().date() if 'df' in locals() and not df.empty else date.today()
+    # start_date, end_date = st.date_input("Período", value=(min_date, max_date), key="filter_range")
 
-    # opções disponíveis no dataset
-    years = sorted(df["date"].dt.year.dropna().unique().tolist())
-    years_opts = ["Todos"] + [str(y) for y in years]
+    # filtros por ano / mês / dia
+    years = sorted(df["date"].dt.year.dropna().unique())
+    year_options = ["Todos"] + [str(y) for y in years]
+    selected_year = st.selectbox("Ano", options=year_options, index=0, key="sel_year")
 
-    selected_year = st.selectbox("Ano", options=years_opts, index=0, key="filter_year")
+    months_present = sorted(df["date"].dt.month.dropna().unique())
+    month_map = {1:"Jan",2:"Fev",3:"Mar",4:"Abr",5:"Mai",6:"Jun",7:"Jul",8:"Ago",9:"Set",10:"Out",11:"Nov",12:"Dez"}
+    month_options = ["Todos"] + [f"{m:02d} - {month_map.get(m,str(m))}" for m in months_present]
+    selected_month_raw = st.selectbox("Mês", options=month_options, index=0, key="sel_month")
 
+    days_present = sorted(df["date"].dt.day.dropna().unique())
+    day_options = ["Todos"] + [str(int(d)) for d in days_present]
+    selected_day = st.selectbox("Dia", options=day_options, index=0, key="sel_day")
+
+# >>> NOVO: aplicar filtros (sem período) imediatamente após o sidebar
+# cria df_filtered padrão para evitar NameError (pode ser modificado pelos filtros abaixo)
+df_filtered = df.copy()
+
+try:
+    # aplicar filtro por ano
     if selected_year != "Todos":
-        months = sorted(df[df["date"].dt.year == int(selected_year)]["date"].dt.month.dropna().unique().tolist())
-    else:
-        months = sorted(df["date"].dt.month.dropna().unique().tolist())
-    months_opts = ["Todos"] + [str(m) for m in months]
-    selected_month = st.selectbox("Mês (número)", options=months_opts, index=0, key="filter_month")
+        df_filtered = df_filtered[df_filtered["date"].dt.year == int(selected_year)]
 
-    if selected_year != "Todos" and selected_month != "Todos":
-        days = sorted(
-            df[(df["date"].dt.year == int(selected_year)) & (df["date"].dt.month == int(selected_month))]["date"].dt.day
-            .dropna()
-            .unique()
-            .tolist()
-        )
-    elif selected_month != "Todos":
-        days = sorted(df[df["date"].dt.month == int(selected_month)]["date"].dt.day.dropna().unique().tolist())
-    else:
-        days = sorted(df["date"].dt.day.dropna().unique().tolist())
-    days_opts = ["Todos"] + [str(d) for d in days]
-    selected_day = st.selectbox("Dia", options=days_opts, index=0, key="filter_day")
+    # aplicar filtro por mês (selected_month_raw no formato "MM - Nome" ou "Todos")
+    if selected_month_raw != "Todos":
+        month_num = int(selected_month_raw.split(" - ")[0])
+        df_filtered = df_filtered[df_filtered["date"].dt.month == month_num]
 
-    st.markdown("")  # espaço
-    apply_filters = st.button("Aplicar filtros", key="apply_filters")
+    # aplicar filtro por dia
+    if selected_day != "Todos":
+        df_filtered = df_filtered[df_filtered["date"].dt.day == int(selected_day)]
+except Exception:
+    # em caso de qualquer problema, mantém df_filtered original
+    df_filtered = df.copy()
 
 # === KPIs NO CORPO PRINCIPAL (primeiros, centralizados) ===
 st.markdown("")  # espaço mínimo abaixo do título
