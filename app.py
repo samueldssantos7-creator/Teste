@@ -302,6 +302,8 @@ with col1:
     if fig1:
         fig1.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
         fig1.update_layout(xaxis_title=None)
+        # centralizar título
+        fig1.update_layout(title_x=0.5)
         # ajuste de margem/altura genérico para evitar cortes
         fig1.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig1, use_container_width=True)
@@ -311,6 +313,7 @@ with col1:
     if fig3:
         fig3.update_traces(marker_color="#FC4C02", line_color="#FC4C02")
         fig3.update_layout(xaxis_title=None)
+        fig3.update_layout(title_x=0.5)
         fig3.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig3, use_container_width=True)
 
@@ -320,6 +323,7 @@ with col2:
     if fig2:
         fig2.update_traces(marker=dict(colors=["#FC4C02", "#FF7F50", "#FFD700", "#A0522D"]))
         fig2.update_layout(xaxis_title=None)
+        fig2.update_layout(title_x=0.5)
         fig2.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=420)
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -327,6 +331,8 @@ with col2:
     fig_km = total_runs_by_km(df_filtered)
     if fig_km:
         fig_km.update_layout(xaxis_title=None)
+        # centralizar título
+        fig_km.update_layout(title_x=0.5)
         # aumentar altura/margem para não cortar pontos/labels
         fig_km.update_layout(margin=dict(t=40, b=60, l=40, r=20), height=460)
         fig_km.update_yaxes(automargin=True)
@@ -337,7 +343,8 @@ fig_monthly = create_monthly_stats(df_filtered)
 if fig_monthly:
     fig_monthly.update_traces(marker_color="#FC4C02")
     fig_monthly.update_layout(xaxis_title=None)
-    # aumentar altura e margem para textos "outside" não serem cortados
+    # centralizar título e aumentar altura e margem para textos "outside" não serem cortados
+    fig_monthly.update_layout(title_x=0.5)
     fig_monthly.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
     fig_monthly.update_yaxes(automargin=True)
     fig_monthly.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
@@ -348,7 +355,8 @@ fig_cat = pace_by_category(df_filtered)
 if fig_cat:
     fig_cat.update_traces(marker_color="#FC4C02")
     fig_cat.update_layout(xaxis_title=None)
-    # aumentar altura e margem para textos "outside" não serem cortados
+    # centralizar título e evitar cortes nos textos "outside"
+    fig_cat.update_layout(title_x=0.5)
     fig_cat.update_layout(margin=dict(t=70, b=100, l=40, r=20), height=540)
     fig_cat.update_yaxes(automargin=True)
     fig_cat.update_layout(uniformtext_minsize=8, uniformtext_mode='show')
