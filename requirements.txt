@@ -1,6 +1,8 @@
 streamlit
 pandas
 plotly
-requests
-dash
-statsmodels
+matplotlib
+seaborn
+scikit-learn
+numpy
+kaleido
